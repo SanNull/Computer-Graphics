@@ -1,6 +1,8 @@
 #include <iostream>
-#include "glad.h"
+#include "../include/glad.h"
 #include <GLFW/glfw3.h>
+
+unsigned int VBOTriangle, VBORect, ShaderProgram, VAO; //IDs
 
 GLFWwindow* createWindow(int width, int height, char *title){
     if (!glfwInit()){
@@ -28,26 +30,39 @@ GLFWwindow* createWindow(int width, int height, char *title){
     return win;
 }
 
+int checkSuccess(unsigned int object, int isProgram){
+    int  success;
+    char infoLog[512];
+    if (isProgram){
+        glGetProgramiv(object, GL_LINK_STATUS, &success);
+            if(!success) {
+                glGetProgramInfoLog(object, 512, NULL, infoLog);
+                std::cout << "ERROR::SHADER::PROGRAM::COMPILATION_FAILED\n" << infoLog << std::endl;
+                return -1;
+            }   
+    }
+    else {
+        glGetShaderiv(object, GL_COMPILE_STATUS, &success);
+        if(!success)
+        {
+            glGetShaderInfoLog(object, 512, NULL, infoLog);
+            std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
+            return -1;
+        }
+    }
 
+    return 1;
+}
 
-int main(void)
-{
-    GLFWwindow *window = createWindow(640,480, "Whats up bitches");
-    glClearColor(0.3f, 0.3f, 0.8f, 1.0f);
+int initializeShapes(){
 
-    float triangle[] = {
-        0.0f, 1.0f, 0.0f,
-        0.5f, -0.3f, 0.0f
-        -0.5f, -0.3f, 0.0f
-    };
+    unsigned int VertexShader, FragmentShader;
+ 
+    const float triangle[] = {0.0f, 1.0f, 0.0f, //top
+                          -0.5f, 0.5f, 0.0f, //left
+                          0.5f,  0.5f, 0.0f}; //right
 
-        // Setup our vertex data
-    GLfloat vertices[] = {-0.5f, -0.5f, 0.0f,
-                          0.5f, -0.5f, 0.0f,
-                          0.0f,  0.5f, 0.0f};
-
-
-    float rect[] = {
+    const float rect[] = {
         // first triangle
         0.5f,  0.5f, 0.0f,  // top right
         0.5f, -0.5f, 0.0f,  // bottom right
@@ -57,12 +72,7 @@ int main(void)
         -0.5f, -0.5f, 0.0f,  // bottom left
         -0.5f,  0.5f, 0.0f   // top left
     }; 
-
-
-    //Triangle
-
-    unsigned int VBO, VertexShader, FragmentShader, ShaderProgram, VAO; //IDs
-
+    
     const char* vertexShaderSource = 
     "#version 330 core\n"
     "layout (location = 0) in vec3 tPos;\n"
@@ -75,52 +85,30 @@ int main(void)
     "out vec4 fragColor;\n"
     "void main(){\n"
         "fragColor = vec4(1.0f,0.0f, 0.0f, 1.0f); "
-    "}\0";
-
-         //Shaders
+    "}\0";  
+    
     VertexShader = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(VertexShader, 1, &vertexShaderSource, NULL);
-    glCompileShader(VertexShader);
-
-
-        //Check Success
-    int  success;
-    char infoLog[512];
-    glGetShaderiv(VertexShader, GL_COMPILE_STATUS, &success);
-
-    if(!success)
-    {
-        glGetShaderInfoLog(VertexShader, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
+    glCompileShader(VertexShader);   
+    if (!checkSuccess(VertexShader, 0)) {
         return -1;
     }
 
-        //Fragment Shader
     FragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(FragmentShader, 1, &fragmentShaderSource, NULL);
     glCompileShader(FragmentShader);
-
-        //Check Success
-    glGetShaderiv(FragmentShader, GL_COMPILE_STATUS, &success);
-    if(!success){
-        glGetShaderInfoLog(FragmentShader, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
+    if (!checkSuccess(FragmentShader, 0)) {
         return -1;
-    }
-
-        //Shader Program
+    }    
+    
     ShaderProgram = glCreateProgram();
     glAttachShader(ShaderProgram, VertexShader);
     glAttachShader(ShaderProgram, FragmentShader);
     glLinkProgram(ShaderProgram);
-
-    glGetProgramiv(ShaderProgram, GL_LINK_STATUS, &success);
-    if(!success) {
-        glGetProgramInfoLog(ShaderProgram, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::PROGRAM::COMPILATION_FAILED\n" << infoLog << std::endl;
+    if (!checkSuccess(FragmentShader, 1)) {
         return -1;
-    }   
-
+    }    
+ 
     glDeleteShader(VertexShader);
     glDeleteShader(FragmentShader);
 
@@ -130,14 +118,39 @@ int main(void)
 
     glBindVertexArray(VAO); //Store vbos efficently soe we need to initalize this only once    
     
-    glGenBuffers(1, &VBO); 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);  
-    glBufferData(GL_ARRAY_BUFFER, sizeof(rect), rect, GL_STATIC_DRAW);    
+    glGenBuffers(1, &VBOTriangle); 
+    glBindBuffer(GL_ARRAY_BUFFER, VBOTriangle);  
+    glBufferData(GL_ARRAY_BUFFER, sizeof(triangle), triangle, GL_STATIC_DRAW);
 
     //Linking vertex atrributes
     //Layout (location = 0), vec3 = 3, float = GL_FLOAT, Normalize = False, stride (x1,y1,z1, x2... = 3 * size(float)), void*(0) = offset
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);      
+    glEnableVertexAttribArray(0);   
+    
+    glBindBuffer(GL_ARRAY_BUFFER, 0); //Unbid VBOTrig
+
+    glGenBuffers(1, &VBORect); 
+    glBindBuffer(GL_ARRAY_BUFFER, VBORect);  
+    glBufferData(GL_ARRAY_BUFFER, sizeof(rect), rect, GL_STATIC_DRAW);
+
+    //Linking vertex atrributes
+    //Layout (location = 0), vec3 = 3, float = GL_FLOAT, Normalize = False, stride (x1,y1,z1, x2... = 3 * size(float)), void*(0) = offset
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0); 
+    
+    glBindBuffer(GL_ARRAY_BUFFER, 0); //Unbid VBORect
+    glBindVertexArray(0); 
+
+
+    return 0;
+}
+
+int main(void)
+{
+    GLFWwindow *window = createWindow(640,480, "Whats up bitches");
+    glClearColor(0.3f, 0.3f, 0.8f, 1.0f);
+    initializeShapes();
+  
 
     while (!glfwWindowShouldClose(window))
     {
@@ -150,7 +163,12 @@ int main(void)
         glUseProgram(ShaderProgram);
         glBindVertexArray(VAO);
 
-        // draw
+        glBindBuffer(GL_ARRAY_BUFFER, VBOTriangle);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (GLvoid*)0);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+
+        glBindBuffer(GL_ARRAY_BUFFER, VBORect);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (GLvoid*)0);
         glDrawArrays(GL_TRIANGLES, 0, 6);
         
 

@@ -5,9 +5,9 @@ cmake_policy(SET CMP0072 NEW)
 find_package(OpenGL REQUIRED)
 
 add_executable(computer_graphics 
-    src/main.cpp    
-    src/glad.h
-    src/glad.c 
+    src/helloShapes.cpp    
+    include/glad.h
+    include/glad.c 
     
     )
 target_link_libraries(computer_graphics 
